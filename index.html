@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주식 포트폴리오 수익률 계산기</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 1200px;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+        h1::before {
+            content: '✅';
+            margin-right: 10px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            align-items: center; /* Add this to align items vertically */
+        }
+        .controls button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .controls button:hover {
+            opacity: 0.9;
+        }
+        #add-stock-btn { background-color: #4CAF50; } /* 종목 추가 */
+        #export-csv-btn { background-color: #008CBA; } /* CSV로 내보내기 */
+        #clear-all-btn { background-color: #f44336; } /* 전체 삭제 */
+        #import-csv-btn { background-color: #6c757d; } /* CSV 불러오기 */
+        
+        .controls label {
+            white-space: nowrap; /* Prevent line break for label */
+            font-weight: bold;
+            color: #555;
+        }
+        .controls select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr); /* 7 inputs, no button here */
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+            align-items: center;
+        }
+        .input-row input, .input-row select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 44px; /* Slightly more rounded */
+            box-sizing: border-box;
+        }
+        /* Style for editable cells */
+        .data-table td.editable {
+            cursor: pointer;
+        }
+        .data-table td.editable:hover {
+            background-color: #e6e6e6; /* Light gray on hover to indicate editability */
+        }
+        .data-table td.editable input,
+        .data-table td.editable select {
+            width: calc(100% - 4px); /* Adjust for padding */
+            padding: 6px;
+            margin: -6px; /* Counteract parent padding for full cell fill */
+            border: 1px solid #007bff; /* Blue border for active input */
+            box-sizing: border-box;
+            font-family: inherit; /* Inherit font from table */
+            font-size: inherit; /* Inherit font size from table */
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden; /* For rounded corners */
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #eee;
+            padding: 12px 8px;
+            text-align: center;
+            vertical-align: middle;
+            white-space: nowrap; /* Prevent line breaks */
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+        .data-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .data-table td:last-child button { /* 삭제 버튼 */
+            background-color: #f44336;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .data-table td:last-child button:hover {
+            background-color: #da190b;
+        }
+        .profit {
+            color: red;
+            font-weight: bold;
+        }
+        .loss {
+            color: blue;
+            font-weight: bold;
+        }
+
+        .summary-box {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 18px;
+            color: #333;
+        }
+        .summary-item {
+            margin: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .summary-item strong {
+            font-size: 20px;
+        }
+        .summary-box .profit {
+            font-size: 20px; /* Make total profit/loss larger */
+        }
+        .summary-box .loss {
+             font-size: 20px;
+        }
+        .summary-box .icon {
+            font-size: 22px;
+        }
+        .summary-box .icon.buy { color: #4CAF50; }
+        .summary-box .icon.sell { color: #FF9800; }
+        .summary-box .icon.profit-loss { color: #2196F3; } /* Default blue for icon */
+        .summary-box .icon.rate { color: #9C27B0; }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .input-row {
+                grid-template-columns: repeat(2, 1fr); /* 2 columns on small screens */
+                gap: 5px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch; /* Stretch items to fill column */
+            }
+            .controls button, .controls label, .controls select {
+                width: 100%; /* Make them full width */
+                box-sizing: border-box;
+            }
+            .data-table th, .data-table td {
+                padding: 8px 4px;
+                font-size: 12px;
+            }
+            .summary-item {
+                flex-basis: 45%; /* Two items per row */
+                justify-content: center;
+            }
+        }
+        @media (max-width: 480px) {
+            .input-row {
+                grid-template-columns: 1fr; /* Single column on very small screens */
+            }
+            .summary-item {
+                flex-basis: 100%; /* One item per row */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>주식 포트폴리오 수익률 계산기</h1>
+
+        <div class="controls">
+            <button id="add-stock-btn" onclick="addTransaction()">종목 추가</button>
+            <button id="export-csv-btn" onclick="exportToCsv()">CSV로 내보내기</button>
+            <button id="clear-all-btn" onclick="clearAllData()">전체 삭제</button>
+            <input type="file" id="import-csv-file-input" accept=".csv" style="display: none;">
+            <button id="import-csv-btn" onclick="document.getElementById('import-csv-file-input').click()">CSV 불러오기</button>
+            
+            <label for="display-currency-selector">총 손익 표시 통화:</label>
+            <select id="display-currency-selector" onchange="renderTable()"> <option value="원화">원화</option>
+                <option value="달러">달러</option>
+            </select>
+        </div>
+
+        <div class="input-row">
+            <input type="date" id="input-purchase-date">
+            <input type="text" id="input-symbol" placeholder="종목명">
+            <input type="number" id="input-purchase-price" placeholder="매수단가 ($)">
+            <input type="number" id="input-sale-price" placeholder="매도단가 ($)">
+            <input type="number" id="input-quantity" placeholder="수량">
+            <input type="number" id="input-exchange-rate" placeholder="환율 (1달러당 원화)">
+            <select id="input-currency-type">
+                <option value="원화">원화</option>
+                <option value="달러">달러</option>
+            </select>
+        </div>
+
+        <table class="data-table" id="portfolio-table">
+            <thead>
+                <tr>
+                    <th>매수일</th>
+                    <th>종목명</th>
+                    <th>매수단가 ($)</th>
+                    <th>매도단가 ($)</th>
+                    <th>수량</th>
+                    <th>환율</th>
+                    <th>통화</th>
+                    <th id="th-total-purchase">총 매수금액</th> <th id="th-total-sale">총 매도금액</th>   <th id="th-profit-loss">손익</th>         <th>수익률</th>
+                    <th>삭제</th>
+                </tr>
+            </thead>
+            <tbody id="portfolio-table-body">
+                </tbody>
+        </table>
+
+        <div class="summary-box">
+            <div class="summary-item"><span class="icon buy">💰</span> 총 매수금액: <strong id="total-purchase-amount">0원</strong></div>
+            <div class="summary-item"><span class="icon sell">💸</span> 총 매도금액: <strong id="total-sale-amount">0원</strong></div>
+            <div class="summary-item"><span class="icon profit-loss">📈</span> 총 손익: <strong id="total-profit-loss" class="profit">0원</strong></div>
+            <div class="summary-item"><span class="icon rate">📊</span> 총 수익률: <strong id="total-return-rate" class="profit">0.00%</strong></div>
+        </div>
+    </div>
+
+    <script>
+        const portfolioTableBody = document.getElementById('portfolio-table-body');
+        const inputPurchaseDate = document.getElementById('input-purchase-date');
+        const inputSymbol = document.getElementById('input-symbol');
+        const inputPurchasePrice = document.getElementById('input-purchase-price');
+        const inputSalePrice = document.getElementById('input-sale-price');
+        const inputQuantity = document.getElementById('input-quantity');
+        const inputExchangeRate = document.getElementById('input-exchange-rate');
+        const inputCurrencyType = document.getElementById('input-currency-type');
+        const importCsvFileInput = document.getElementById('import-csv-file-input');
+        const displayCurrencySelector = document.getElementById('display-currency-selector');
+
+        // Get references to table headers for dynamic updates
+        const thTotalPurchase = document.getElementById('th-total-purchase');
+        const thTotalSale = document.getElementById('th-total-sale');
+        const thProfitLoss = document.getElementById('th-profit-loss');
+
+        let transactions = []; // Global array to store all transaction data
+
+        // Fields that are directly editable in the table
+        const editableFields = [
+            'purchaseDate', 'symbol', 'purchasePrice', 'salePrice', 
+            'quantity', 'exchangeRate', 'currencyType'
+        ];
+
+        // Load data from localStorage on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTransactions = localStorage.getItem('stockPortfolio');
+            if (savedTransactions) {
+                transactions = JSON.parse(savedTransactions);
+            }
+            renderTable(); // Always render the table on load
+        });
+
+        // Function to save data to localStorage
+        function saveTransactions() {
+            localStorage.setItem('stockPortfolio', JSON.stringify(transactions));
+        }
+
+        // Helper to format numbers with commas and currency
+        function formatCurrency(amount, currency) {
+            if (currency === '원화') {
+                return `${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}원`;
+            } else {
+                return `${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}$`;
+            }
+        }
+
+        // Function to render the table with current transactions data
+        function renderTable() {
+            portfolioTableBody.innerHTML = ''; // Clear existing rows
+            const displayCurrency = displayCurrencySelector.value; // Get the selected display currency
+
+            // Update table headers based on selected display currency
+            thTotalPurchase.textContent = `총 매수금액 (${displayCurrency === '원화' ? '원' : '$'})`;
+            thTotalSale.textContent = `총 매도금액 (${displayCurrency === '원화' ? '원' : '$'})`;
+            thProfitLoss.textContent = `손익 (${displayCurrency === '원화' ? '원' : '$'})`;
+            
+            transactions.forEach((data, index) => {
+                const row = portfolioTableBody.insertRow();
+
+                const totalPurchaseAmountRawUSD = data.purchasePrice * data.quantity;
+                const totalSaleAmountRawUSD = data.salePrice * data.quantity;
+                let profitLossRawUSD = (totalSaleAmountRawUSD - totalPurchaseAmountRawUSD);
+
+                // Calculate values for display based on the global displayCurrency
+                let displayTotalPurchaseAmount = totalPurchaseAmountRawUSD;
+                let displayTotalSaleAmount = totalSaleAmountRawUSD;
+                let displayProfitLoss = profitLossRawUSD;
+                
+                if (displayCurrency === '원화') {
+                    displayTotalPurchaseAmount *= data.exchangeRate;
+                    displayTotalSaleAmount *= data.exchangeRate;
+                    displayProfitLoss *= data.exchangeRate;
+                }
+
+                // Individual row return rate is still based on USD values for consistent stock performance evaluation
+                const returnRate = (totalPurchaseAmountRawUSD !== 0) ? (profitLossRawUSD / totalPurchaseAmountRawUSD) * 100 : 0;
+
+                // Create cells and make them editable where applicable
+                const cells = [];
+                cells.push(row.insertCell()); // 매수일 (0)
+                cells.push(row.insertCell()); // 종목명 (1)
+                cells.push(row.insertCell()); // 매수단가 (2)
+                cells.push(row.insertCell()); // 매도단가 (3)
+                cells.push(row.insertCell()); // 수량 (4)
+                cells.push(row.insertCell()); // 환율 (5)
+                cells.push(row.insertCell()); // 통화 (6)
+                cells.push(row.insertCell()); // 총 매수금액 (7) - Calculated
+                cells.push(row.insertCell()); // 총 매도금액 (8) - Calculated
+                cells.push(row.insertCell()); // 손익 (9) - Calculated
+                cells.push(row.insertCell()); // 수익률 (10) - Calculated
+                cells.push(row.insertCell()); // 삭제 (11) - Button
+
+                // Set initial text content and add editable class/event listener
+                cells[0].textContent = data.purchaseDate;
+                cells[0].classList.add('editable');
+                cells[0].onclick = (e) => makeCellEditable(e.target, index, 'purchaseDate', 'date');
+
+                cells[1].textContent = data.symbol;
+                cells[1].classList.add('editable');
+                cells[1].onclick = (e) => makeCellEditable(e.target, index, 'symbol', 'text');
+
+                cells[2].textContent = data.purchasePrice.toFixed(2);
+                cells[2].classList.add('editable');
+                cells[2].onclick = (e) => makeCellEditable(e.target, index, 'purchasePrice', 'number');
+
+                cells[3].textContent = data.salePrice.toFixed(2);
+                cells[3].classList.add('editable');
+                cells[3].onclick = (e) => makeCellEditable(e.target, index, 'salePrice', 'number');
+
+                cells[4].textContent = data.quantity;
+                cells[4].classList.add('editable');
+                cells[4].onclick = (e) => makeCellEditable(e.target, index, 'quantity', 'number');
+
+                cells[5].textContent = data.exchangeRate.toFixed(2);
+                cells[5].classList.add('editable');
+                cells[5].onclick = (e) => makeCellEditable(e.target, index, 'exchangeRate', 'number');
+                
+                cells[6].textContent = data.currencyType; // Keep original currency type
+                cells[6].classList.add('editable');
+                cells[6].onclick = (e) => makeCellEditable(e.target, index, 'currencyType', 'select');
+
+                // Display amounts in the selected global currency (calculated, not editable)
+                cells[7].textContent = formatCurrency(displayTotalPurchaseAmount, displayCurrency);
+                cells[8].textContent = formatCurrency(displayTotalSaleAmount, displayCurrency);
+
+                const profitLossCell = cells[9];
+                profitLossCell.textContent = formatCurrency(displayProfitLoss, displayCurrency);
+                if (displayProfitLoss > 0) {
+                    profitLossCell.classList.add('profit');
+                } else if (displayProfitLoss < 0) {
+                    profitLossCell.classList.add('loss');
+                }
+
+                const returnRateCell = cells[10];
+                returnRateCell.textContent = `${returnRate.toFixed(2)}%`;
+                if (returnRate > 0) {
+                    returnRateCell.classList.add('profit');
+                } else if (returnRate < 0) {
+                    returnRateCell.classList.add('loss');
+                }
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '삭제';
+                deleteBtn.onclick = () => deleteTransaction(index);
+                cells[11].appendChild(deleteBtn);
+            });
+
+            updateTotalSummary(); // Recalculate and display total summary
+        }
+
+        // Function to make a table cell editable
+        let currentlyEditingCell = null; // To prevent multiple edits at once
+
+        function makeCellEditable(cell, index, fieldName, inputType) {
+            // If another cell is being edited, prevent new edit
+            if (currentlyEditingCell && currentlyEditingCell !== cell) {
+                // Optionally save/revert previous edit first
+                // For now, just prevent
+                return; 
+            }
+            if (cell.querySelector('input') || cell.querySelector('select')) {
+                // Already an input/select element, do nothing
+                return;
+            }
+
+            currentlyEditingCell = cell;
+            const originalValue = cell.textContent;
+            cell.innerHTML = ''; // Clear cell content
+
+            let inputElement;
+            if (inputType === 'select') {
+                inputElement = document.createElement('select');
+                ['원화', '달러'].forEach(optionValue => {
+                    const option = document.createElement('option');
+                    option.value = optionValue;
+                    option.textContent = optionValue;
+                    inputElement.appendChild(option);
+                });
+                inputElement.value = originalValue; // Set selected option
+            } else {
+                inputElement = document.createElement('input');
+                inputElement.type = inputType;
+                inputElement.value = originalValue;
+                if (inputType === 'number') {
+                    inputElement.step = 'any'; // Allow decimal numbers
+                }
+            }
+            
+            cell.appendChild(inputElement);
+            inputElement.focus();
+
+            // Event listener for saving changes
+            const saveEdit = () => {
+                let newValue = inputElement.value;
+                let isValid = true;
+
+                // Type conversion and validation
+                if (inputType === 'number') {
+                    newValue = parseFloat(newValue);
+                    if (isNaN(newValue)) {
+                        alert('숫자를 입력해야 합니다.');
+                        isValid = false;
+                        newValue = parseFloat(originalValue); // Revert to original if invalid
+                    } else if (fieldName === 'quantity' && newValue <= 0) {
+                        alert('수량은 0보다 커야 합니다.');
+                        isValid = false;
+                        newValue = parseFloat(originalValue); // Revert
+                    }
+                } else if (inputType === 'date') {
+                    // Dates are validated by input type='date' itself mostly
+                    if (!newValue) { // Check if empty
+                        alert('날짜를 입력해야 합니다.');
+                        isValid = false;
+                        newValue = originalValue; // Revert
+                    }
+                } else { // text, select
+                    newValue = newValue.trim();
+                    if (!newValue) {
+                        alert('값을 입력해야 합니다.');
+                        isValid = false;
+                        newValue = originalValue; // Revert
+                    }
+                }
+
+                // Update the transactions array
+                if (isValid && transactions[index]) { // Check if index is still valid (not deleted)
+                    transactions[index][fieldName] = newValue;
+                    saveTransactions(); // Save to localStorage
+                }
+                
+                currentlyEditingCell = null; // Reset editing state
+                renderTable(); // Re-render table to reflect changes and update all calculated values
+            };
+
+            inputElement.addEventListener('blur', saveEdit);
+            inputElement.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent new line in some inputs
+                    inputElement.blur(); // Trigger blur event to save
+                }
+            });
+        }
+
+        // Function to add a new transaction from the input fields
+        function addTransaction() {
+            const purchaseDate = inputPurchaseDate.value;
+            const symbol = inputSymbol.value.trim();
+            const purchasePrice = parseFloat(inputPurchasePrice.value);
+            const salePrice = parseFloat(inputSalePrice.value);
+            const quantity = parseInt(inputQuantity.value);
+            const exchangeRate = parseFloat(inputExchangeRate.value);
+            const currencyType = inputCurrencyType.value; // This is the original transaction currency type
+
+            if (!purchaseDate || !symbol || isNaN(purchasePrice) || isNaN(salePrice) || isNaN(quantity) || isNaN(exchangeRate) || quantity <= 0) {
+                alert('모든 필드를 올바르게 입력해주세요 (수량은 0보다 커야 합니다).');
+                return;
+            }
+
+            const newTransaction = {
+                purchaseDate,
+                symbol,
+                purchasePrice,
+                salePrice,
+                quantity,
+                exchangeRate,
+                currencyType // Store the original currency type for each transaction
+            };
+
+            transactions.push(newTransaction);
+            saveTransactions(); // Save to localStorage
+            renderTable();      // Re-render the table to reflect changes
+
+            // Clear input fields after adding
+            inputPurchaseDate.value = '';
+            inputSymbol.value = '';
+            inputPurchasePrice.value = '';
+            inputSalePrice.value = '';
+            inputQuantity.value = '';
+            inputExchangeRate.value = '';
+            inputCurrencyType.value = '원화'; // Reset to default
+        }
+
+        // Function to delete a transaction
+        function deleteTransaction(index) {
+            if (confirm('이 항목을 삭제하시겠습니까?')) {
+                transactions.splice(index, 1); 
+                saveTransactions(); // Save to localStorage
+                renderTable();      // Re-render the table to reflect deletion and update indices
+            }
+        }
+
+        // Function to update the total summary at the bottom based on selected display currency
+        function updateTotalSummary() {
+            const displayCurrency = displayCurrencySelector.value;
+
+            let combinedTotalPurchase = 0;
+            let combinedTotalSale = 0;
+            let combinedTotalProfitLoss = 0;
+
+            transactions.forEach(data => {
+                const totalPurchaseAmountUSD_raw = data.purchasePrice * data.quantity;
+                const totalSaleAmountUSD_raw = data.salePrice * data.quantity;
+                const profitLossUSD_raw = totalSaleAmountUSD_raw - totalPurchaseAmountUSD_raw;
+
+                if (displayCurrency === '원화') {
+                    combinedTotalPurchase += totalPurchaseAmountUSD_raw * data.exchangeRate;
+                    combinedTotalSale += totalSaleAmountUSD_raw * data.exchangeRate;
+                    combinedTotalProfitLoss += profitLossUSD_raw * data.exchangeRate;
+                } else { // 달러
+                    combinedTotalPurchase += totalPurchaseAmountUSD_raw;
+                    combinedTotalSale += totalSaleAmountUSD_raw;
+                    combinedTotalProfitLoss += profitLossUSD_raw;
+                }
+            });
+
+            const totalPurchaseAmountElement = document.getElementById('total-purchase-amount');
+            const totalSaleAmountElement = document.getElementById('total-sale-amount');
+            const totalProfitLossElement = document.getElementById('total-profit-loss');
+            const totalReturnRateElement = document.getElementById('total-return-rate');
+
+            totalPurchaseAmountElement.textContent = formatCurrency(combinedTotalPurchase, displayCurrency);
+            totalSaleAmountElement.textContent = formatCurrency(combinedTotalSale, displayCurrency);
+            totalProfitLossElement.textContent = formatCurrency(combinedTotalProfitLoss, displayCurrency);
+
+            // Set color for total profit/loss
+            totalProfitLossElement.classList.remove('profit', 'loss');
+            if (combinedTotalProfitLoss > 0) {
+                totalProfitLossElement.classList.add('profit');
+            } else if (combinedTotalProfitLoss < 0) {
+                totalProfitLossElement.classList.add('loss');
+            }
+
+            // Calculate and display total return rate (based on selected display currency totals)
+            let totalReturnRate = (combinedTotalPurchase !== 0) ? (combinedTotalProfitLoss / combinedTotalPurchase) * 100 : 0;
+            totalReturnRateElement.textContent = `${totalReturnRate.toFixed(2)}%`;
+
+            totalReturnRateElement.classList.remove('profit', 'loss');
+            if (totalReturnRate > 0) {
+                totalReturnRateElement.classList.add('profit');
+            } else if (totalReturnRate < 0) {
+                totalReturnRateElement.classList.add('loss');
+            }
+        }
+
+
+        // Function to export data to CSV
+        function exportToCsv() {
+            if (transactions.length === 0) {
+                alert('내보낼 데이터가 없습니다.');
+                return;
+            }
+
+            const displayCurrency = displayCurrencySelector.value; // Use current display currency for CSV export values
+
+            let csvContent = "매수일,종목명,매수단가($),매도단가($),수량,환율,통화,총 매수금액,총 매도금액,손익,수익률\n";
+
+            transactions.forEach(data => {
+                const totalPurchaseAmountRawUSD = data.purchasePrice * data.quantity;
+                const totalSaleAmountRawUSD = data.salePrice * data.quantity;
+                let profitLossRawUSD = (totalSaleAmountRawUSD - totalPurchaseAmountRawUSD);
+
+                let displayTotalPurchaseAmount = totalPurchaseAmountRawUSD;
+                let displayTotalSaleAmount = totalSaleAmountRawUSD;
+                let displayProfitLoss = profitLossRawUSD;
+                
+                // Convert to the selected display currency for CSV
+                if (displayCurrency === '원화') {
+                    displayTotalPurchaseAmount *= data.exchangeRate;
+                    displayTotalSaleAmount *= data.exchangeRate;
+                    displayProfitLoss *= data.exchangeRate;
+                }
+                
+                // Individual row return rate is still based on raw USD for consistency in CSV
+                const returnRate = (totalPurchaseAmountRawUSD !== 0) ? (profitLossRawUSD / totalPurchaseAmountRawUSD) * 100 : 0;
+
+                const row = [
+                    data.purchaseDate,
+                    data.symbol,
+                    data.purchasePrice.toFixed(2),
+                    data.salePrice.toFixed(2),
+                    data.quantity,
+                    data.exchangeRate.toFixed(2),
+                    data.currencyType,
+                    formatCurrency(displayTotalPurchaseAmount, displayCurrency), // Use formatCurrency for CSV export
+                    formatCurrency(displayTotalSaleAmount, displayCurrency),
+                    formatCurrency(displayProfitLoss, displayCurrency),
+                    returnRate.toFixed(2) + '%'
+                ].map(item => `"${String(item).replace(/"/g, '""')}"`).join(','); // Handle commas and quotes in data
+                csvContent += row + "\n";
+            });
+
+            const blob = new Blob(["\ufeff", csvContent], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Korean compatibility
+            const link = document.createElement('a');
+            if (link.download !== undefined) { // Feature detection for download attribute
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'stock_portfolio.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Function to import data from CSV
+        importCsvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                if (lines.length <= 1) { // Only header or empty
+                    alert('유효한 CSV 데이터가 없습니다.');
+                    return;
+                }
+
+                const newTransactions = [];
+                // Skip header row
+                for (let i = 1; i < lines.length; i++) {
+                    // Split and clean values, remove currency symbols like '원' or '$' before parsing numbers
+                    const values = lines[i].split(',').map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"').replace('원', '').replace('$', ''));
+                    
+                    if (values.length >= 7) { // Ensure enough columns for core data (매수일 ~ 통화)
+                        newTransactions.push({
+                            purchaseDate: values[0].trim(),
+                            symbol: values[1].trim(),
+                            purchasePrice: parseFloat(values[2]),
+                            salePrice: parseFloat(values[3]),
+                            quantity: parseInt(values[4]),
+                            exchangeRate: parseFloat(values[5]),
+                            currencyType: values[6].trim()
+                        });
+                    }
+                }
+                
+                // Merge or replace existing data
+                if (confirm('기존 데이터를 불러온 CSV 데이터로 대체하시겠습니까? (취소 시 기존 데이터에 추가됩니다)')) {
+                    transactions = newTransactions;
+                } else {
+                    transactions = transactions.concat(newTransactions);
+                }
+                
+                saveTransactions();
+                renderTable();
+                alert('CSV 파일 불러오기 완료!');
+            };
+            reader.readAsText(file, 'UTF-8'); // Ensure UTF-8 for Korean
+        });
+
+        // Function to clear all data
+        function clearAllData() {
+            if (confirm('정말로 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+                transactions = [];
+                saveTransactions();
+                renderTable();
+                alert('모든 데이터가 삭제되었습니다.');
+            }
+        }
+    </script>
+</body>
+</html>
